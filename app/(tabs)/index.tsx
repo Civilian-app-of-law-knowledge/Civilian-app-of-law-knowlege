@@ -1,5 +1,5 @@
 import { ScrollView, Text, View, TouchableOpacity, Linking, RefreshControl } from "react-native";
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
 import { useState, useCallback } from "react";
 
 import { ScreenContainer } from "@/components/screen-container";
@@ -8,16 +8,25 @@ import { useColors } from "@/hooks/use-colors";
 import { Footer } from "@/components/footer";
 import { useRefresh } from "@/lib/refresh-provider";
 import { lawUpdates, emergencyContacts, faqs } from "@/data/legal-content";
+import { DocumentWallet, WalletDocument } from "@/lib/document-wallet";
 
 export default function HomeScreen() {
   const router = useRouter();
   const colors = useColors();
   const { isRefreshing, refreshData, timeSinceRefresh, nextRefreshIn } = useRefresh();
   const [refreshing, setRefreshing] = useState(false);
+  const [pinnedAffidavit, setPinnedAffidavit] = useState<WalletDocument | null>(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      DocumentWallet.getPinnedAffidavit().then(setPinnedAffidavit);
+    }, [setPinnedAffidavit])
+  );
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await refreshData();
+    setPinnedAffidavit(await DocumentWallet.getPinnedAffidavit());
     setRefreshing(false);
   }, [refreshData]);
 
@@ -37,6 +46,7 @@ export default function HomeScreen() {
 
   const moreResources = [
     { title: "SSI & Benefits", icon: "dollarsign.circle" as const, route: "/ssi-benefits" },
+    { title: "Document Wallet", icon: "folder.fill" as const, route: "/document-wallet" },
     { title: "Charge Reduction", icon: "arrow.down.circle" as const, route: "/charge-reduction" },
     { title: "Law Alerts", icon: "bell.fill" as const, route: "/law-alerts" },
     { title: "Lawyer Directory", icon: "person.text.rectangle" as const, route: "/lawyer-directory" },
@@ -98,6 +108,37 @@ export default function HomeScreen() {
             <Text className="text-xs text-muted ml-2">Updated {timeSinceRefresh} • Next refresh in {nextRefreshIn}</Text>
           </View>
         </View>
+
+        {/* Pinned Affidavit */}
+        {pinnedAffidavit && (
+          <View className="px-4 pt-4 pb-2">
+            <TouchableOpacity
+              className="bg-surface rounded-xl p-4 border flex-row items-center"
+              style={{ borderColor: colors.primary + "60" }}
+              onPress={() => router.push("/document-wallet" as any)}
+              activeOpacity={0.7}
+            >
+              <View
+                className="w-10 h-10 rounded-full items-center justify-center mr-3"
+                style={{ backgroundColor: colors.primary + "20" }}
+              >
+                <IconSymbol name="pin.fill" size={20} color={colors.primary} />
+              </View>
+              <View className="flex-1">
+                <Text className="text-xs font-semibold uppercase mb-0.5" style={{ color: colors.primary }}>
+                  📌 Pinned Affidavit
+                </Text>
+                <Text className="text-sm font-semibold text-foreground" numberOfLines={1}>
+                  {pinnedAffidavit.title}
+                </Text>
+                {pinnedAffidavit.caseNumber ? (
+                  <Text className="text-xs text-muted">Case: {pinnedAffidavit.caseNumber}</Text>
+                ) : null}
+              </View>
+              <IconSymbol name="chevron.right" size={18} color={colors.muted} />
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* Quick Actions Grid */}
         <View className="px-4 py-4">
